@@ -12,7 +12,7 @@ if [ $? -eq 1 ]; then
     --net=host \
     -v $VOLUME_DIR/lib/unifi-video:/var/lib/unifi-video \
     -v $VOLUME_DIR/log/unifi-video:/var/log/unifi-video \
-    ekiourk/unifi-video:3.1.2
+    ekiourk/unifi-video:latest
   exit 0
 fi
 
