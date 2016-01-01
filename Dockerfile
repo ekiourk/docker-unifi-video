@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y \
     libc6
 
 RUN apt-get install -y curl
-RUN curl -L -O http://dl.ubnt.com/firmwares/unifi-video/3.1.2/unifi-video_3.1.2-Debian7_amd64.deb
-
-RUN dpkg -i unifi-video_3.1.2-Debian7_amd64.deb && rm unifi-video_3.1.2-Debian7_amd64.deb
+RUN curl -L -O http://dl.ubnt.com/firmwares/unifi-video/3.1.2/unifi-video_3.1.2-Debian7_amd64.deb \
+  && dpkg -i unifi-video_3.1.2-Debian7_amd64.deb \
+  && rm unifi-video_3.1.2-Debian7_amd64.deb
 
 EXPOSE 7080
 
