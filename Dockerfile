@@ -14,12 +14,16 @@ RUN apt-get update && apt-get install -y \
     mongodb-server \
     openjdk-7-jre-headless \
     jsvc \
-    libc6
+    libc6 \
+    curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/*
 
-RUN apt-get install -y curl
-RUN curl -L -O http://dl.ubnt.com/firmwares/unifi-video/3.1.2/unifi-video_3.1.2-Debian7_amd64.deb \
-  && dpkg -i unifi-video_3.1.2-Debian7_amd64.deb \
-  && rm unifi-video_3.1.2-Debian7_amd64.deb
+RUN apt-get update && apt-get install -y psmisc
+RUN curl -L -O https://dl.ubnt.com/firmwares/unifi-video/3.5.2/unifi-video_3.5.2~Ubuntu12.04_amd64.deb \
+  && dpkg -i unifi-video_3.5.2~Ubuntu12.04_amd64.deb \
+  && rm unifi-video_3.5.2~Ubuntu12.04_amd64.deb
 
 EXPOSE 7080
 
