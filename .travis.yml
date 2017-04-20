@@ -1,0 +1,23 @@
+sudo: required
+language: bash
+
+git:
+  depth: 3
+
+branches:
+  only:
+    - master
+
+services:
+  - docker
+
+before_script:
+  - export IMAGE_NAME=ekiourk/unifi-video:3.5.2
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+
+script:
+  - docker build -t "$IMAGE_NAME" . 
+
+after_success:
+  - docker push "$IMAGE_NAME"
+
