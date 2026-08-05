@@ -1,0 +1,7 @@
+# cache/ is deliberately NOT ignored — it feeds the offline build path.
+.git
+.github
+.gitignore
+README.md
+docker-compose.yml
+run.sh
