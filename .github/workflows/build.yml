@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # No ./cache in CI, so this exercises the download path and the checksum pin.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ekiourk/unifi-video:3.5.2
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run --rm --entrypoint /bin/bash ekiourk/unifi-video:3.5.2 -c '
+            set -e
+            test -x /usr/lib/unifi-video/bin/mongod
+            java -version
+            dpkg -s unifi-video | grep "^Version:"
+          '
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ekiourk/unifi-video:3.5.2
+          cache-from: type=gha
