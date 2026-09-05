@@ -94,6 +94,73 @@ or, without compose:
 Both use host networking and bind-mount `/var/lib/unifi-video` (recordings **and** the
 MongoDB database) and `/var/log/unifi-video` from the host.
 
+## Running under Podman (Quadlet)
+
+`quadlet/` holds a [Podman Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
+unit, which is the systemd-native equivalent of the compose file above. Quadlet reads
+`.container` files at boot and generates real systemd services from them.
+
+**Requirements**
+
+- **podman >= 4.4** — Quadlet was introduced in 4.4. Note Debian 12 ships 4.3 and is
+  therefore too old; Fedora 38+, RHEL/CentOS 9.3+, Ubuntu 24.04, openSUSE MicroOS 6.x
+  and Arch are all fine.
+- systemd, and the image built locally (see **Build** above)
+
+**Install**
+
+```shell
+sudo ./quadlet/install-quadlet.sh
+DRY_RUN=1 ./quadlet/install-quadlet.sh          # preview the generated unit, change nothing
+```
+
+The paths are parameters, defaulting to the layout this is deployed on:
+
+| Variable | Default | What it is |
+|---|---|---|
+| `DATA_DIR` | `/var/lib/unifi-nvr/data` | configuration, keystore, and the bundled MongoDB — small, worth putting on a checksumming filesystem |
+| `VIDEO_DIR` | `/var/mnt/storage/unifi-nvr/videos` | the recordings — give this its own filesystem |
+| `LOG_DIR` | `/var/log/unifi-nvr` | controller logs |
+| `IMAGE` | `localhost/ekiourk/unifi-video:3.5.2` | the locally built image |
+| `UNIT_DIR` | `/etc/containers/systemd` | where Quadlet looks for unit files |
+
+```shell
+sudo DATA_DIR=/srv/nvr/data VIDEO_DIR=/mnt/bulk/videos ./quadlet/install-quadlet.sh
+```
+
+`/var/mnt` in the default is an openSUSE MicroOS convention — `/mnt` is part of the
+read-only root there. On other distributions `/mnt/...` or `/srv/...` is more natural.
+
+**Why the recordings are a separate volume**
+
+`VIDEO_DIR` is bind-mounted *inside* `DATA_DIR`, at `/var/lib/unifi-video/videos`. Podman
+orders bind mounts by path depth, so the deeper one wins and the controller still sees a
+single tree at `/var/lib/unifi-video` — while 24/7 video goes to its own filesystem. That
+lets the recordings sit on XFS (no copy-on-write, no snapshot growth) with the database
+on something checksummed, without the controller knowing anything about it.
+
+**Why there is an installer rather than a file to copy**
+
+The unit needs `Requires=`/`After=` on the systemd mount unit for the recordings
+filesystem, and systemd derives that name from the path — `/var/mnt/storage` becomes
+`var-mnt-storage.mount`. Get it wrong and nothing complains: the ordering silently does
+not apply, and the controller can start before the filesystem is mounted and write video
+into the empty mount point on the root filesystem. The installer works the name out with
+`systemd-escape -p --suffix=mount`, and omits the dependency entirely when the recordings
+are on the root filesystem.
+
+**Ports**
+
+The container uses host networking, so the ports below have to be open on the host
+firewall. The installer prints the `firewall-cmd` invocation.
+
+**Note on the image reference**
+
+`IMAGE` defaults to `localhost/...` deliberately. The `ekiourk/unifi-video:3.5.2` tag on
+Docker Hub was pushed in 2017 and predates the fixes in this repository, so a container
+started from it dies on a current runtime. The `localhost/` prefix also means podman
+cannot silently pull it.
+
 ## Shutting down
 
 Always stop it with `docker compose down` or `docker stop` — never `docker kill`. The
