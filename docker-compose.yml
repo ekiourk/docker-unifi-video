@@ -1,0 +1,32 @@
+name: unifi-video
+
+services:
+  unifi-video:
+    image: ekiourk/unifi-video:${UNIFI_VIDEO_VERSION:-3.5.2}
+    build:
+      context: .
+      args:
+        UNIFI_VIDEO_VERSION: ${UNIFI_VIDEO_VERSION:-3.5.2}
+    container_name: unifi-video
+
+    # Cameras find the controller over LAN broadcast and it binds a wide port range, so
+    # it has always run with host networking.
+    network_mode: host
+
+    # Carried over from the original deployment. Worth testing without once the upgrade
+    # settles — it is unlikely the controller genuinely needs full privileges.
+    privileged: true
+    security_opt:
+      - label=disable
+
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+    # The bundled mongod must flush and release its lock. Docker's 10s default is not
+    # enough and a hard kill risks corrupting the recordings database.
+    stop_grace_period: 120s
+
+    volumes:
+      - /var/lib/unifi-video:/var/lib/unifi-video
+      - /var/log/unifi-video:/var/log/unifi-video

@@ -1,0 +1,63 @@
+# Podman Quadlet unit for the UniFi Video controller.
+#
+# This is a TEMPLATE. The placeholders below must be substituted before use — either by running
+# ../quadlet/install-quadlet.sh, or by hand (see README, "Running under Podman").
+# Quadlet turns the finished file into a systemd service; there is no `podman run` and
+# no compose file involved.
+#
+# Requires podman >= 4.4 (when Quadlet was introduced).
+
+[Unit]
+Description=UniFi Video controller
+Documentation=https://github.com/ekiourk/docker-unifi-video
+Wants=network-online.target
+After=network-online.target
+@MOUNT_DEPS@
+
+[Container]
+# localhost/ because this image is built locally. Do NOT point this at Docker Hub: the
+# ekiourk/unifi-video:3.5.2 tag there was pushed in 2017 and predates both the ulimit
+# workaround and the graceful-shutdown handling, so the service dies on a current
+# runtime. The localhost/ prefix also stops podman silently pulling that image.
+Image=@IMAGE@
+ContainerName=unifi-nvr
+
+# Cameras discover the controller by LAN broadcast and it binds a wide port range
+# (7080, 7443, 7445-7447, 6666, 10001/udp), so host networking rather than published
+# ports. Open those in the host firewall.
+Network=host
+
+# Controller state: configuration, keystore, and the bundled MongoDB. Small, and worth
+# putting on a checksumming filesystem.
+Volume=@DATA_DIR@:/var/lib/unifi-video:rw
+
+# Recordings. Deliberately a separate volume mounted INSIDE the one above, so 24/7 video
+# can live on its own filesystem while the controller still sees a single tree at
+# /var/lib/unifi-video. Podman orders bind mounts by path depth, so the deeper one wins.
+# @DATA_DIR@/videos must exist as an empty directory or there is nothing to mount onto.
+Volume=@VIDEO_DIR@:/var/lib/unifi-video/videos:rw
+
+Volume=@LOG_DIR@:/var/log/unifi-video:rw
+
+Timezone=local
+
+# The controller runs as root inside the container and the .deb's postinst chowns its
+# state on every start. SecurityLabelDisable is required on SELinux hosts (Fedora, RHEL,
+# openSUSE MicroOS) and is a harmless no-op elsewhere. The alternative is appending :z
+# to each Volume= above and dropping this line.
+SecurityLabelDisable=true
+
+# --privileged is inherited from the original deployment and has not been re-examined;
+# it is unlikely the controller genuinely needs it. --stop-timeout gives the bundled
+# mongod room to flush and release its lock — a hard kill risks corrupting the
+# recordings database.
+PodmanArgs=--privileged --stop-timeout=120
+
+[Service]
+# Must exceed the --stop-timeout above, or systemd SIGKILLs the container mid-flush.
+TimeoutStopSec=180
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

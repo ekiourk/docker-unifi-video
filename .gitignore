@@ -1,0 +1,2 @@
+# The vendor .deb is ~79MB — keep it locally for offline builds, out of git.
+cache/*.deb
